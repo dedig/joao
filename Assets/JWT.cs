@@ -6,6 +6,8 @@ using System.Text;
 namespace Rowbots.Crypto{
 	public class JWT {
 
+		const string headerJSON = "{\"alg\":\"HS256\",\"typ\":\"JWT\"}";
+
 	static string ToBase64URL(string str){
 		str = System.Convert.ToBase64String(Encoding.UTF8.GetBytes(str));
 		str = str.Split('=')[0]; // Remove any trailing '='s
@@ -20,8 +22,16 @@ namespace Rowbots.Crypto{
 	}
 
 	public static string GenerateToken(object payload, string secret){		
-		string header = ToBase64URL("{\"alg\":\"HS256\",\"typ\":\"JWT\"}");				
+		string header = ToBase64URL(headerJSON);				
 		string payloadJson = ToBase64URL(JsonUtility.ToJson(payload));
+		string headerload = header + "." + payloadJson;
+		string signature = ToHMAC(str: headerload, secret: secret);
+		return headerload + "." + signature;
+	}
+
+	public static string GenerateTokenFromString(string payload, string secret){		
+		string header = ToBase64URL(headerJSON);				
+		string payloadJson = ToBase64URL(payload);
 		string headerload = header + "." + payloadJson;
 		string signature = ToHMAC(str: headerload, secret: secret);
 		return headerload + "." + signature;
@@ -47,7 +57,10 @@ namespace Rowbots.Crypto{
 			Debug.LogWarning("[JWT] String somehow got past verification but doesn't conform to JWT standards");
 			return string.Empty;
 		}
-		split[1] += "=="; //Convert.FromBase64String needs this unfortunately :(
+		int len = split[1].Length % 4;
+		if (len > 0){
+			split[1] = split[1].PadRight(split[1].Length + (4 - len), '=');
+		} 		
 		string convertedString = Encoding.UTF8.GetString(System.Convert.FromBase64String(split[1]));		
 		return convertedString;
 	}
